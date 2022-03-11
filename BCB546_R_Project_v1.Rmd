@@ -1,0 +1,551 @@
+---
+title: "BCB546_R_Project_v1"
+author: "Tyler Foster"
+date: "3/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install these packages if not installed previously
+
+#install.packages("tidyverse")
+#install.packages("dplyr")
+#install.packages("janitor")
+#install.packages("data.table")
+```
+
+```{r}
+#Loading in the packages that I need for analysis
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(data.table)
+```
+
+# 1.1 Data Inspection - Genotype File
+
+```{r}
+#Loading the fang_et_al_genotypes file and saving as object "geno"
+geno <- read.delim("https://raw.githubusercontent.com/Tfost1994/BCB546-Spring2022/main/assignments/UNIX_Assignment/fang_et_al_genotypes.txt", header = TRUE, sep = "\t")
+```
+
+```{r, include=FALSE}
+#Our first inspection requires that we view the entire dataset as a table
+view(geno)
+```
+
+```{r}
+#Because the file is very large, let's get a quick snapshot of the dataset. We can use the head command to identify if there is a header and to get a better understanding of what the data looks like. The output gives us the first 6 rows (along with the header) and all of the 986 columns.
+head(geno)
+```
+
+```{r}
+#Similarly we can obtain the bottom portion of the dataset.The output still provides us with the header, but this time, we are given the last 6 rows and all of the columns for the dataset.
+tail(geno)
+```
+
+```{r}
+#Obtaining the structure of the data. Meaning, I am determining what type of vectors I have for each of the current columns. 'Sample_ID, JG_OTU, Group and all of the the nucleotide information are character vectors.
+str(geno)
+```
+
+# 1.2 Data Inspection - SNP File
+
+```{r}
+#Loading the snp_position file and saving as object "snp"
+snp <- read.delim("https://raw.githubusercontent.com/Tfost1994/BCB546-Spring2022/main/assignments/UNIX_Assignment/snp_position.txt", header = TRUE, sep = "\t")
+```
+
+```{r, include=FALSE}
+#We want to first view the entire snp dataset in a table format.
+view(snp)
+```
+
+```{r}
+#Like with the genotype file, we are given an output with 6 rows and a header. This file contains 15 columns. Head function gives us the first 6 rows.
+head(snp)
+```
+
+```{r}
+#We can also get information for the last 6 rows. Again, we are provided with a header and there are 15 columns.
+tail(snp)
+```
+
+```{r}
+#Time to determine the data structure. As we can see, we have a mix of vectors. Some columns contain characters while some columns contain integers.
+str(snp)
+```
+
+```{r}
+#From the Unix assignment, I remembered we only needed the information from SNP_ID, Chromosome, and Position for when we merge the dataset later on. I then saved this selection as a new object "snp3" as it is the snp datafile with just 3 columns. I have found that long names become troublesome when typing large amounts of code so decided to keep it simple, as long as there is annotation provided.
+snp3 <- snp %>% select(SNP_ID, Chromosome, Position)
+```
+
+```{r}
+#Arranging by SNP_ID for merging later on. Dont think it's required for joining in R but just making sure.
+snp3 <- snp3 %>% arrange(SNP_ID)
+```
+
+# 2.1 Data Processing - Maize
+
+```{r}
+#Filtering the entire genotype file for the groups that are associated with maize and creating a new object "maize_geno"
+maize_geno <- geno %>% filter(Group == "ZMMIL" | Group == "ZMMMR" | Group == "ZMMLR") %>%
+#Transposing the maize genotype file
+  t() %>%
+#Creating a maize dataframe from the maize transposed matrix.
+#The column names do not look correct and need changing.
+  as.data.frame() %>%
+#SetDT allows for the dataframe to keep column names for the 1st column. Otherwise, we won't be able to join the files successfully.
+  setDT(keep.rownames = TRUE) %>%
+#This code allows for us to rename our dataframe header with the selected row (row 1) as row 1 contains our Sample_ID and sequence identifier information.Cannot use head() in this situation as the datafile is too large.
+  row_to_names(row_number = 1) %>%
+#Changing the column name of "Sample_ID" to "SNP_ID so that it matches the SNP dataset column name for joining.
+  rename(SNP_ID = Sample_ID)
+```
+
+```{r}
+#We do not need rows 1 and 2, as they do not contain nucleotide information, so lets remove those.
+maize_geno <- maize_geno[-c(1, 2), ]
+```
+
+```{r}
+#Just arraning the file in the case that the order for joining data is important.
+maize_geno <- maize_geno %>% arrange(SNP_ID)
+```
+
+```{r}
+#Joining the snp3 object with the snp data hat only contains the 3 columns of interest with our maize nucleotide information. With right join, the nucleotide information is added to the right of my snp data. Join was done by "SNP_ID"
+joined_maize <- snp3 %>% right_join(maize_geno)
+```
+```{r}
+#Creating a list of dataframes that we will use later.
+Chromosome_split <- split(joined_maize, joined_maize$Chromosome)
+```
+
+```{r}
+#Creating a list of names for dataframes that I will use in the next line of code. The order in which names are given MATTERS! Must be in the same order in which "Chromosome_split" creates the list of dataframes.
+maize_chr_data <- c("Maize_Chr_1", "Maize_Chr_10", "Maize_Chr_2", "Maize_Chr_3", "Maize_Chr_4", "Maize_Chr_5", "Maize_Chr_6", "Maize_Chr_7", "Maize_Chr_8", "Maize_Chr_9")
+#For this assignment, we do not need to create any datasets that contain "unknown" or "multiple"
+```
+
+```{r}
+#Creating a for loop to split, or subset, the data based upon the created group of lists (Chromosome_split) and assigning the corresponding name.
+for (i in 1:length(Chromosome_split)) {assign(maize_chr_data[i], Chromosome_split[[i]])}
+```
+
+
+# 2.1.1 Data Processing - Increasing Maize
+
+```{r}
+#At the moment, I haven't figured out a loop for doing this process.
+Maize_Chr_1$Position <- as.numeric(Maize_Chr_1$Position)
+Increasing_Maize_Chr_1 <-Maize_Chr_1 %>% arrange(`Position`)
+
+Maize_Chr_10$Position <- as.numeric(Maize_Chr_10$Position)
+Increasing_Maize_Chr_10 <-Maize_Chr_10 %>% arrange(`Position`)
+
+Maize_Chr_2$Position <- as.numeric(Maize_Chr_2$Position)
+Increasing_Maize_Chr_2 <-Maize_Chr_2 %>% arrange(`Position`)
+
+Maize_Chr_3$Position <- as.numeric(Maize_Chr_3$Position)
+Increasing_Maize_Chr_3 <-Maize_Chr_3 %>% arrange(`Position`)
+
+Maize_Chr_4$Position <- as.numeric(Maize_Chr_4$Position)
+Increasing_Maize_Chr_4 <-Maize_Chr_4 %>% arrange(`Position`)
+
+Maize_Chr_5$Position <- as.numeric(Maize_Chr_5$Position)
+Increasing_Maize_Chr_5 <-Maize_Chr_5 %>% arrange(`Position`)
+
+Maize_Chr_6$Position <- as.numeric(Maize_Chr_6$Position)
+Increasing_Maize_Chr_6 <-Maize_Chr_6 %>% arrange(`Position`)
+
+Maize_Chr_7$Position <- as.numeric(Maize_Chr_7$Position)
+Increasing_Maize_Chr_7 <-Maize_Chr_7 %>% arrange(`Position`)
+
+Maize_Chr_8$Position <- as.numeric(Maize_Chr_8$Position)
+Increasing_Maize_Chr_8 <- Maize_Chr_8 %>% arrange(`Position`)
+
+Maize_Chr_9$Position <- as.numeric(Maize_Chr_9$Position)
+Increasing_Maize_Chr_9 <- Maize_Chr_9 %>% arrange(`Position`)
+```
+
+```{r}
+#Creating a large list of the chromosome dataframes that we have.
+Increasing_Maize_list <- list(Increasing_Maize_Chr_1,Increasing_Maize_Chr_10,Increasing_Maize_Chr_2,Increasing_Maize_Chr_3,Increasing_Maize_Chr_4,Increasing_Maize_Chr_5,Increasing_Maize_Chr_6,Increasing_Maize_Chr_7,Increasing_Maize_Chr_8,Increasing_Maize_Chr_9)
+```
+
+```{r}
+increasing_maize <- c("Increasing_Maize_Chr_1", "Increasing_Maize_Chr_10", "Increasing_Maize_Chr_2", "Increasing_Maize_Chr_3", "Increasing_Maize_Chr_4", "Increasing_Maize_Chr_5", "Increasing_Maize_Chr_6", "Increasing_Maize_Chr_7", "Increasing_Maize_Chr_8", "Increasing_Maize_Chr_9")
+```
+
+```{r}
+#Designating names so that the loop functions correctly when writing our files in the next chunk of code.
+names(increasing_maize) <- c("Increasing_Maize_Chr_1", "Increasing_Maize_Chr_10", "Increasing_Maize_Chr_2", "Increasing_Maize_Chr_3", "Increasing_Maize_Chr_4", "Increasing_Maize_Chr_5", "Increasing_Maize_Chr_6", "Increasing_Maize_Chr_7", "Increasing_Maize_Chr_8", "Increasing_Maize_Chr_9")
+```
+
+```{r}
+#Creating a loop to save a text file for each of the maize chromosomes that have "Position" in increasing order
+for (i in 1:length(Increasing_Maize_list)) {
+  write.table(Increasing_Maize_list[i], file = paste(names(increasing_maize[i]), ".txt", sep = ""), col.names= TRUE, sep = "\t", quote=FALSE)
+}
+```
+
+# 2.1.2 Data Processing - Decreasing Maize
+
+```{r}
+#At the moment, I haven't figured out a loop for doing this process.
+Decreasing_Maize_Chr_1 <-Maize_Chr_1 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_10 <-Maize_Chr_10 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_2 <-Maize_Chr_2 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_3 <-Maize_Chr_3 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_4 <-Maize_Chr_4 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_5 <-Maize_Chr_5 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_6 <-Maize_Chr_6 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_7 <-Maize_Chr_7 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_8 <- Maize_Chr_8 %>% arrange(desc(`Position`))
+
+Decreasing_Maize_Chr_9 <- Maize_Chr_9 %>% arrange(desc(`Position`))
+```
+
+```{r}
+#replaces the ? values with -
+#At the moment, I haven't figured out a loop for doing this process.
+Decreasing_Maize_Chr_1[Decreasing_Maize_Chr_1=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_10[Decreasing_Maize_Chr_10=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_2[Decreasing_Maize_Chr_2=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_3[Decreasing_Maize_Chr_3=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_4[Decreasing_Maize_Chr_4=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_5[Decreasing_Maize_Chr_5=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_6[Decreasing_Maize_Chr_6=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_7[Decreasing_Maize_Chr_7=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_8[Decreasing_Maize_Chr_8=="?/?"]<-"-/-"
+Decreasing_Maize_Chr_9[Decreasing_Maize_Chr_9=="?/?"]<-"-/-"
+```
+
+```{r}
+#Creating a large list of the chromosome dataframes that we have.
+Decreasing_Maize_list <- list(Decreasing_Maize_Chr_1,Decreasing_Maize_Chr_10,Decreasing_Maize_Chr_2,Decreasing_Maize_Chr_3,Decreasing_Maize_Chr_4,Decreasing_Maize_Chr_5,Decreasing_Maize_Chr_6,Decreasing_Maize_Chr_7,Decreasing_Maize_Chr_8,Decreasing_Maize_Chr_9)
+```
+
+```{r}
+decreasing_maize <- c("Decreasing_Maize_Chr_1", "Decreasing_Maize_Chr_10", "Decreasing_Maize_Chr_2", "Decreasing_Maize_Chr_3", "Decreasing_Maize_Chr_4", "Decreasing_Maize_Chr_5", "Decreasing_Maize_Chr_6", "Decreasing_Maize_Chr_7", "Decreasing_Maize_Chr_8", "Decreasing_Maize_Chr_9")
+```
+
+```{r}
+#Designating names so that the loop functions correctly when writing our files in the next chunk of code.
+names(decreasing_maize) <- c("Decreasing_Maize_Chr_1", "Decreasing_Maize_Chr_10", "Decreasing_Maize_Chr_2", "Decreasing_Maize_Chr_3", "Decreasing_Maize_Chr_4", "Decreasing_Maize_Chr_5", "Decreasing_Maize_Chr_6", "Decreasing_Maize_Chr_7", "Decreasing_Maize_Chr_8", "Decreasing_Maize_Chr_9")
+```
+
+```{r}
+#Creating a loop to save a text file for each of the Maize chromosomes that have "Position" in Decreasing order
+for (i in 1:length(Decreasing_Maize_list)) {
+  write.table(Decreasing_Maize_list[i], file = paste(names(decreasing_maize[i]), ".txt", sep = ""), col.names= TRUE, sep = "\t", quote=FALSE)
+}
+```
+
+# 2.2 Data Processing - Teosinte
+
+```{r}
+#Filtering the entire genotype file for the groups that are associated with teosinte and creating a new object "maize_geno"
+teosinte_geno <- geno %>% filter(Group == "ZMPBA" | Group == "ZMPIL" | Group == "ZMPJA") %>%
+#Transposing the teosinte genotype file
+  t() %>%
+#Creating a teosinte dataframe from the teosinte transposed matrix.
+#The column names do not look correct and need changing.
+  as.data.frame() %>%
+#SetDT allows for the dataframe to keep column names for the 1st column. Otherwise, we won't be able to join the files successfully.
+  setDT(keep.rownames = TRUE) %>%
+#This code allows for us to rename our dataframe header with the selected row (row 1) as row 1 contains our Sample_ID and sequence identifier information.Cannot use head() in this situation as the datafile is too large.
+  row_to_names(row_number = 1) %>%
+#Changing the column name of "Sample_ID" to "SNP_ID so that it matches the SNP dataset column name for joining.
+  rename(SNP_ID = Sample_ID)
+```
+
+```{r}
+#We do not need rows 1 and 2, as they do not contain nucleotide information, so lets remove those.
+teosinte_geno <- teosinte_geno[-c(1, 2), ]
+```
+
+```{r}
+#Just arraning the file in the case that the order for joining data is important.
+teosinte_geno <- teosinte_geno %>% arrange(SNP_ID)
+```
+
+```{r}
+#Joining the snp3 object with the snp data hat only contains the 3 columns of interest with our teosinte nucleotide information. With right join, the nucleotide information is added to the right of my snp data. Joined by "SNP_ID"
+joined_teosinte <- snp3 %>% right_join(teosinte_geno)
+```
+
+```{r}
+#Creating a 2nd list of dataframes that we will use later.Saving as object "Chromosome_split2".
+Chromosome_split2 <- split(joined_teosinte, joined_teosinte$Chromosome)
+```
+
+```{r}
+#Creating a list of names for dataframes that I will use in the next line of code. The order in which names are given MATTERS! Must be in the same order in which "Chromosome_split" creates the list of dataframes.
+teosinte_chr_data <- c("Teosinte_Chr_1", "Teosinte_Chr_10", "Teosinte_Chr_2", "Teosinte_Chr_3", "Teosinte_Chr_4", "Teosinte_Chr_5", "Teosinte_Chr_6", "Teosinte_Chr_7", "Teosinte_Chr_8", "Teosinte_Chr_9")
+#For this assignment, we do not need to create any datasets that contain "unknown" or "multiple"
+```
+
+```{r}
+#Creating a for loop to split, or subset, the data based upon the created group of lists (Chromosome_split) and assigning the corresponding name as the object.
+for (i in 1:length(Chromosome_split2)) {assign(teosinte_chr_data[i], Chromosome_split2[[i]])}
+```
+
+# 2.2.1 Data Processing - Increasing Teosinte
+
+```{r}
+#At the moment, I haven't figured out a loop for doing this process.
+Teosinte_Chr_1$Position <- as.numeric(Teosinte_Chr_1$Position)
+Increasing_Teosinte_Chr_1 <-Teosinte_Chr_1 %>% arrange(`Position`)
+
+Teosinte_Chr_10$Position <- as.numeric(Teosinte_Chr_10$Position)
+Increasing_Teosinte_Chr_10 <-Teosinte_Chr_10 %>% arrange(`Position`)
+
+Teosinte_Chr_2$Position <- as.numeric(Teosinte_Chr_2$Position)
+Increasing_Teosinte_Chr_2 <-Teosinte_Chr_2 %>% arrange(`Position`)
+
+Teosinte_Chr_3$Position <- as.numeric(Teosinte_Chr_3$Position)
+Increasing_Teosinte_Chr_3 <-Teosinte_Chr_3 %>% arrange(`Position`)
+
+Teosinte_Chr_4$Position <- as.numeric(Teosinte_Chr_4$Position)
+Increasing_Teosinte_Chr_4 <-Teosinte_Chr_4 %>% arrange(`Position`)
+
+Teosinte_Chr_5$Position <- as.numeric(Teosinte_Chr_5$Position)
+Increasing_Teosinte_Chr_5 <-Teosinte_Chr_5 %>% arrange(`Position`)
+
+Teosinte_Chr_6$Position <- as.numeric(Teosinte_Chr_6$Position)
+Increasing_Teosinte_Chr_6 <-Teosinte_Chr_6 %>% arrange(`Position`)
+
+Teosinte_Chr_7$Position <- as.numeric(Teosinte_Chr_7$Position)
+Increasing_Teosinte_Chr_7 <-Teosinte_Chr_7 %>% arrange(`Position`)
+
+Teosinte_Chr_8$Position <- as.numeric(Teosinte_Chr_8$Position)
+Increasing_Teosinte_Chr_8 <- Teosinte_Chr_8 %>% arrange(`Position`)
+
+Teosinte_Chr_9$Position <- as.numeric(Teosinte_Chr_9$Position)
+Increasing_Teosinte_Chr_9 <- Teosinte_Chr_9 %>% arrange(`Position`)
+```
+
+```{r}
+#Creating a large list of the chromosome dataframes that we have.
+Increasing_Teosinte_list <- list(Increasing_Teosinte_Chr_1,Increasing_Teosinte_Chr_10,Increasing_Teosinte_Chr_2,Increasing_Teosinte_Chr_3,Increasing_Teosinte_Chr_4,Increasing_Teosinte_Chr_5,Increasing_Teosinte_Chr_6,Increasing_Teosinte_Chr_7,Increasing_Teosinte_Chr_8,Increasing_Teosinte_Chr_9)
+```
+
+```{r}
+increasing_teosinte <- c("Increasing_Teosinte_Chr_1", "Increasing_Teosinte_Chr_10", "Increasing_Teosinte_Chr_2", "Increasing_Teosinte_Chr_3", "Increasing_Teosinte_Chr_4", "Increasing_Teosinte_Chr_5", "Increasing_Teosinte_Chr_6", "Increasing_Teosinte_Chr_7", "Increasing_Teosinte_Chr_8", "Increasing_Teosinte_Chr_9")
+```
+
+```{r}
+#Designating names so that the loop functions correctly when writing our files in the next chunk of code.
+names(increasing_teosinte) <- c("Increasing_Teosinte_Chr_1", "Increasing_Teosinte_Chr_10", "Increasing_Teosinte_Chr_2", "Increasing_Teosinte_Chr_3", "Increasing_Teosinte_Chr_4", "Increasing_Teosinte_Chr_5", "Increasing_Teosinte_Chr_6", "Increasing_Teosinte_Chr_7", "Increasing_Teosinte_Chr_8", "Increasing_Teosinte_Chr_9")
+```
+
+```{r}
+#Creating a loop to save a text file for each of the teosinte chromosomes that have "Position" in increasing order
+for (i in 1:length(Increasing_Teosinte_list)) {
+  write.table(Increasing_Teosinte_list[i], file = paste(names(increasing_teosinte[i]), ".txt", sep = ""), col.names= TRUE, sep = "\t", quote=FALSE)
+}
+```
+
+# 2.2.2 Data Processing - Decreasing Teosinte
+
+```{r}
+#At the moment, I haven't figured out a loop for doing this process.
+Decreasing_Teosinte_Chr_1 <-Teosinte_Chr_1 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_10 <-Teosinte_Chr_10 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_2 <-Teosinte_Chr_2 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_3 <-Teosinte_Chr_3 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_4 <-Teosinte_Chr_4 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_5 <-Teosinte_Chr_5 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_6 <-Teosinte_Chr_6 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_7 <-Teosinte_Chr_7 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_8 <- Teosinte_Chr_8 %>% arrange(desc(`Position`))
+
+Decreasing_Teosinte_Chr_9 <- Teosinte_Chr_9 %>% arrange(desc(`Position`))
+```
+
+```{r}
+#replaces the ? values with -
+#At the moment, I haven't figured out a loop for doing this process.
+Decreasing_Teosinte_Chr_1[Decreasing_Teosinte_Chr_1=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_10[Decreasing_Teosinte_Chr_10=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_2[Decreasing_Teosinte_Chr_2=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_3[Decreasing_Teosinte_Chr_3=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_4[Decreasing_Teosinte_Chr_4=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_5[Decreasing_Teosinte_Chr_5=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_6[Decreasing_Teosinte_Chr_6=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_7[Decreasing_Teosinte_Chr_7=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_8[Decreasing_Teosinte_Chr_8=="?/?"]<-"-/-"
+Decreasing_Teosinte_Chr_9[Decreasing_Teosinte_Chr_9=="?/?"]<-"-/-"
+```
+
+```{r}
+#Creating a large list of the chromosome dataframes that we have.
+Decreasing_Teosinte_list <- list(Decreasing_Teosinte_Chr_1,Decreasing_Teosinte_Chr_10,Decreasing_Teosinte_Chr_2,Decreasing_Teosinte_Chr_3,Decreasing_Teosinte_Chr_4,Decreasing_Teosinte_Chr_5,Decreasing_Teosinte_Chr_6,Decreasing_Teosinte_Chr_7,Decreasing_Teosinte_Chr_8,Decreasing_Teosinte_Chr_9)
+```
+
+```{r}
+decreasing_teosinte <- c("Decreasing_Teosinte_Chr_1", "Decreasing_Teosinte_Chr_10", "Decreasing_Teosinte_Chr_2", "Decreasing_Teosinte_Chr_3", "Decreasing_Teosinte_Chr_4", "Decreasing_Teosinte_Chr_5", "Decreasing_Teosinte_Chr_6", "Decreasing_Teosinte_Chr_7", "Decreasing_Teosinte_Chr_8", "Decreasing_Teosinte_Chr_9")
+```
+
+```{r}
+#Designating names so that the loop functions correctly when writing our files in the next chunk of code. We use this to paste the names of each of the teosinte chromosomes in the chunk below.
+names(decreasing_teosinte) <- c("Decreasing_Teosinte_Chr_1", "Decreasing_Teosinte_Chr_10", "Decreasing_Teosinte_Chr_2", "Decreasing_Teosinte_Chr_3", "Decreasing_Teosinte_Chr_4", "Decreasing_Teosinte_Chr_5", "Decreasing_Teosinte_Chr_6", "Decreasing_Teosinte_Chr_7", "Decreasing_Teosinte_Chr_8", "Decreasing_Teosinte_Chr_9")
+```
+
+```{r}
+#Creating a loop to save a text file for each of the teosinte chromosomes that have "Position" in Decreasing order
+for (i in 1:length(Decreasing_Teosinte_list)) {
+  write.table(Decreasing_Teosinte_list[i], file = paste(names(decreasing_teosinte[i]), ".txt", sep = ""), col.names= TRUE, sep = "\t", quote=FALSE)
+}
+```
+
+# SNPs per Chromosome
+
+##Let's look at maize first##
+
+###Distribution Across Genome###
+
+```{r}
+#Changing the chromosome column in the joined dataset for maize to numeric values from character variables.
+joined_maize$Chromosome <- as.numeric(joined_maize$Chromosome)
+#Ploting as a histogram with chromosome being on the x axis and changing the number of breaks to equal the number of chromosomes for a more appealing graph.
+ggplot(joined_maize) +
+  geom_histogram(aes(x = Chromosome),binwidth = 0.5,) + scale_x_continuous(n.breaks = 10)
+ggsave("Maize_Genome_distribution.pdf")
+```
+
+###Distribution on a Single Chromosome###
+
+```{r}
+#Changing the position column from character values to numberic values for visualization
+joined_maize$Position <- as.numeric(joined_maize$Position)
+#Plotting as a geometic point graph to show the location of each SNP position to the corresponding chromosome that it is found on. 
+ggplot(na.omit(joined_maize)) + geom_point(aes(x=Position, y=Chromosome)) + scale_y_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10))
+ggsave("Maize_Chromosome_Distribution.pdf")
+```
+##Now let's visualize the teosinte information##
+
+###Distribution Across Genome###
+
+```{r}
+#Likewise with teosinte, we much change column values to numeric.
+joined_teosinte$Chromosome <- as.numeric(joined_teosinte$Chromosome)
+#Create histogram to show the distribution of SNPs across the genome.
+ggplot(joined_teosinte) +
+  geom_histogram(aes(x = Chromosome),binwidth = 0.5,) + scale_x_continuous(n.breaks = 10)
+ggsave("Teosinte_Genome_Distribution.pdf")
+```
+
+###Distribution on a Single Chromosome###
+
+```{r}
+#Chaning column values to numeric.
+joined_teosinte$Position <- as.numeric(joined_teosinte$Position)
+#Creating a point graph to visualize each SNP position on a given chromosome.
+ggplot(na.omit(joined_teosinte)) + geom_point(aes(x=Position, y=Chromosome)) + scale_y_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10))
+ggsave("Teosinte_Chromosome_Distribution.pdf")
+```
+#####What we find from visualizing both of the datasets for each species is that the number of SNPs remains the same. The difference, and reason why the maize dataframe is larger, is there are more individual genotypic samples for maize than teosinte.##### 
+
+
+
+
+# Missing Data and Amount of Heterozygosity
+
+```{r}
+#Lets start by pivoting the nucleotide data into separate columns that contain the corresponding values for heterozygous, homozygous, missing and the total number.
+homo_het_miss_pivot <- geno %>%
+  mutate(Homozygous = apply(geno, 1, function(x) length(which(x == ("A/A") | x == ("T/T") | x == ("C/C") | x == ("G/G"))))) %>%
+  mutate(Heterozygous = apply(geno, 1, function(x) length(which(x == ("A/C") | x == ("A/T") | x == ("A/G") | x == ("C/A") | x == ("C/T") | x == ("C/G") | x == ("G/A") | x == ("G/C") | x == ("G/T") | x == ("T/A") | x == ("T/C") | x == ("T/G"))))) %>%
+  mutate(Missing = apply(geno, 1, function(x) length(which(x == ("?/?"))))) %>%
+  mutate(Total =  apply(geno, 1, function(x) length(which(x == ("?/?") | x == ("A/A") | x == ("T/T") | x == ("C/C") | x == ("G/G") | x == ("A/C") | x == ("A/T") | x == ("A/G") | x == ("C/A") | x == ("C/T") | x == ("C/G") | x == ("G/A") | x == ("G/C") | x == ("G/T") | x == ("T/A") | x == ("T/C") | x == ("T/G")))))
+```
+
+```{r}
+#Selecting just the new columns with our Sample_ID (SNP_ID) and the corresponding Group, which we will use for graphing below.
+selected_df <- homo_het_miss_pivot %>% select(Sample_ID, Homozygous, Heterozygous, Missing, Group)
+```
+
+```{r}
+#Using reshape2 (melt) to change the structure of the data so that it can be easily plotted below
+selected_df <- melt(selected_df, id.vars = c("Sample_ID", "Group"))
+```
+####Proportion of Homozygous, Heterozygous, and Missing values in each Sample####
+
+```{r}
+#Using a bar plot to visualize the distribution of calls on a Sample_ID level. There is variation but SNPs are primariliy Homozygous for this dataset. For visualization, I included all Groups and not just Groups that are associated with Teosinte/Maize.
+(p <- ggplot(selected_df, aes(Sample_ID, value, fill = variable)) +
+    geom_bar(position = "fill", stat = "identity") +
+    scale_y_continuous(labels = percent) + scale_x_discrete(labels = abbreviate) + theme(axis.text.y=element_text(color="transparent"))) + ylab("Genotype Call Percentage") + xlab("Sample_ID") + coord_flip()
+ggsave("Genotye_Calls_for_SampleID.pdf")
+```
+####Proportion of Homozygous, Heterozygous, and Missing values in each Group####
+
+```{r}
+#Using a bar plot to visualize the distribution of calls on a Group level. There is variation but SNPs are primariliy Homozygous for this dataset. For visualization, I included all Groups and not just Groups that are associated with Teosinte/Maize.
+(q <- ggplot(selected_df, aes(Group, value, fill = variable)) +
+    geom_bar(position = "fill", stat = "identity") +
+    scale_y_continuous(labels = percent) + ylab("Genotype Call Percentage") + coord_flip()
+)
+ggsave("Genotye_Calls_for_Group.pdf")
+```
+# My own Visualization
+
+##I've never created my own genotypic panel, just worked with panels that have been genotyped for me. I do know that in the beginning stages, there are normally many lines that are dropped from the panel that was originally designed. I'm sure that this exact filtering system is not how it is normally done, but I at least wanted to give it a try. The reason for filtering is heterozygous calls and missing calls are not as useful for GWAS. Just because a sample has a large amount homozygous SNPs (depicted in the graphs) it doesnt mean it isn't useful. For example, the data signifies homozygous as G/G, C/C, A/A, T/T. Therefore, samples can have a homozygous SNP and be distinctly different than another sample, which when given a phenotype to run GWAS, makes the test so powerful. That is, if there is considerable LD but let's not get into all of the complications. Just show that the filtering can work for the purpose we want.##
+
+```{r}
+homo_het_miss_pivot2 <- homo_het_miss_pivot %>% select(Sample_ID, Homozygous, Heterozygous, Missing, Total)
+str(homo_het_miss_pivot2)
+```
+```{r}
+#Creating new columns
+homo_het_miss_percentage <- mutate(homo_het_miss_pivot2, 
+       Homozygous_Percentage = (Homozygous) / (Total),
+       Heterozygous_Percentage = (Heterozygous) / (Total),
+       Missing_Percentage = (Missing) / (Total)
+       ) %>% select(Sample_ID, Homozygous_Percentage, Heterozygous_Percentage, Missing_Percentage)
+```
+
+
+```{r}
+#Filtering my data for the specifics I desire..
+my_own_gwas_panel <- homo_het_miss_percentage %>% filter(Homozygous_Percentage >.80 & Missing_Percentage < 0.05)
+```
+
+
+```{r}
+#Melting the columns into a variable column and a value column for graphing
+my_own_gwas_panel<- melt(my_own_gwas_panel, id.vars = c("Sample_ID"))
+```
+
+```{r}
+#The plot here looks very similar to what I have above, however, pay attention to the varying levels of percentage. The heterozygous and missing calls have a much lower frequency than in the initial plot above.
+(p <- ggplot(my_own_gwas_panel, aes(Sample_ID, value, fill = variable)) +
+    geom_bar(position = "fill", stat = "identity") +
+    scale_y_continuous(labels = percent) + scale_x_discrete(labels = abbreviate) + theme(axis.text.y=element_text(color="transparent"))) + ylab("Genotype Call Percentage") + xlab("Sample_ID") + coord_flip()
+ggsave("Genotye_Calls_for_Potential_GWAS.pdf")
+```
+
