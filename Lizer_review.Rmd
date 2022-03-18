@@ -1,0 +1,20 @@
+---
+title: "Lizer_Review"
+output: html_document
+date: "3/18/2022"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Errors I encountered 
+
+Line 548, 511, and 502 has an error "Error in check_breaks_labels(breaks, labels) : object 'percent' not found". All the packages seem to be loaded in fine so maybe one you are using is missing? I quickly Googled the error and I think you might need to put quotations around percent like (labels = "percent"). When I did that however, I got a different error about object 'variable' not being found, so this might need some more looking into. 
+
+I also got a warning about NAs being introduced when producing the individual chromosome files. I know I got the same warning when I used the as.numeric function. 
+
+Overall, I think your graphs look really good and it all seems very well organized and explained step-by-step in the script. 
+
+
