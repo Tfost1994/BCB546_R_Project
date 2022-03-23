@@ -21,8 +21,10 @@ Plots
   5. A teosinte chromosome distribution plot
   6. A teosinte genomme distribution plot
   7. A genotype calls for a potential gwas plot
+  8. A species chromosome distribution plot (in the plots directory only)
 
 Directories
 1. Maize - contains the txt files (decreasing and increasing) for maize and easier to locate for grading the project
 3. Teosinte - contains the txt files (decreasing and increasing) for teosinte and easier to locate for grading the project
 4. Plots - all of the maize/teosinte plots and are easier to locate for grading the project
+***Directories were added to the project after reviews***
