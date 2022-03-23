@@ -6,8 +6,11 @@ Files
   2. 10 txt files for increasing SNP positions in teosinte with missing values as "?"
   3. 10 txt files for decreasing SNP positions in maize with missing values as "-"
   4. 10 txt files for decreasing SNP positions in teosinte with missing values as "-"
-  5. Version 1 of the rmd file for the project that my reviewers used to review my work.
-  6. Final version of the rmd file that incorporates some suggestions from my reviewers and fixes a few issues.
+  5. Rmd and html review from Lizer.
+  6. Rmd and html review from McMurchie.
+  7. Version 1 of the rmd file for the project that my reviewers used to review my work.
+  8. Final version of the rmd file that incorporates some suggestions from my reviewers and fixes a few issues.
+  9. gitignore
 
 Plots
   1. A genotype calls for group plot
