@@ -10,7 +10,8 @@ Files
   6. Rmd and html review from McMurchie.
   7. Version 1 of the rmd file for the project that my reviewers used to review my work.
   8. Final version of the rmd file that incorporates some suggestions from my reviewers and fixes a few issues.
-  9. gitignore
+  9. Final version of the html file that incorporates some suggestions from my reviewers and fixes a few issues - it's quite large and doesn't look like any html files I've uploaded previously. For grading, I suggest viewing the rmd file and running all chunks at once, it takes less than 3 minutes to run all chunks :)
+  10. gitignore
 
 Plots
   1. A genotype calls for group plot
