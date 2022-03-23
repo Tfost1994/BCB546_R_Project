@@ -27,4 +27,6 @@ Directories
 1. Maize - contains the txt files (decreasing and increasing) for maize and easier to locate for grading the project
 3. Teosinte - contains the txt files (decreasing and increasing) for teosinte and easier to locate for grading the project
 4. Plots - all of the maize/teosinte plots and are easier to locate for grading the project
+
+
 ***Directories were added to the project after reviews***
